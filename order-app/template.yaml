@@ -97,8 +97,60 @@ Resources:
           Effect: Allow
           Resource:
             - !GetAtt GetOrders.Arn
+            - !GetAtt PostOrders.Arn
+            - !GetAtt GetSingleOrder.Arn
+            
       Roles: 
         - Ref: "ApiGwExecutionRole"
+
+
+  PostOrders:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: src/order-api/functions/post-orders/
+      Handler: app.postOrders
+      Runtime: nodejs14.x
+      Environment:
+        Variables:
+          ORDER_TABLE: !Ref OrderTable
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+            Resource:
+              - !Sub 
+                - 'arn:aws:dynamodb:*:*:table/${Table}'
+                - { Table: !Ref OrderTable }
+          - Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"    
+
+  GetSingleOrder:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: src/order-api/functions/get-single-order/
+      Handler: app.getOrderById
+      Runtime: nodejs14.x
+      Environment:
+        Variables:
+          ORDER_TABLE: !Ref OrderTable
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+            Resource:
+              - !Sub 
+                - 'arn:aws:dynamodb:*:*:table/${Table}'
+                - { Table: !Ref OrderTable }
+          - Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"    
 
 
   
@@ -115,4 +167,10 @@ Outputs:
     Description: "API Gateway endpoint URL for Dev stage for Order Get function"
     Value: !Sub "https://${OrderApi}.execute-api.${AWS::Region}.amazonaws.com/Dev/orders/"
 
-  
+  PostOrders:
+    Description: "PostOrders Lambda Function ARN"
+    Value: !GetAtt PostOrders.Arn
+
+  GetSingleOrder:
+    Description: "GetSingleOrder Lambda Function ARN"
+    Value: !GetAtt GetSingleOrder.Arn
