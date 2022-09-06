@@ -4,22 +4,11 @@
 const dynamodb = require('aws-sdk/clients/dynamodb');
 const docClient = new dynamodb.DocumentClient();
 const uuid = require('node-uuid');
+const { getCurrentDate } = require('/opt/dates');
 
 const tableName = process.env.ORDER_TABLE;
 const DEFAULT_ORDER_STATUS = "PENDING" // Default Order Status will be written to DynamoDB
 
-// The function returns current date
-const getCurrentDate = () => {
-    let date_ob = new Date();
-    let date = ("0" + date_ob.getDate()).slice(-2);
-    let month = ("0" + (date_ob.getMonth() + 1)).slice(-2);
-    let year = date_ob.getFullYear();
-    let hours = date_ob.getHours();
-    let minutes = date_ob.getMinutes();
-    let seconds = date_ob.getSeconds();
-    
-    return year + "-" + month + "-" + date + "T" + hours + ":" + minutes + ":" + seconds;
-}
 
 exports.postOrders = async (event) => {
     let formattedDateNow = getCurrentDate();
