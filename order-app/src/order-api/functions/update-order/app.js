@@ -28,13 +28,16 @@ exports.updateOrder = async (event) => {
     let params = {
         TableName : tableName,
         Key: item,
-        UpdateExpression: "set quantity = :q, name = :n, restaurantId = :r, updatedAt = :u",
+        UpdateExpression: "set quantity = :q, #nm = :n, restaurantId = :r, updatedAt = :u",
         ExpressionAttributeValues:{
             ":n": parsedBody.name,
             ":q": parsedBody.quantity,
             ":r": parsedBody.restaurantId,
             ":u": formattedDateNow
         },
+        ExpressionAttributeNames:{
+            "#nm": "name"
+          },
         
         ReturnValues:"UPDATED_NEW"
     };

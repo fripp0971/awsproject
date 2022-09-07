@@ -63,6 +63,8 @@ Resources:
       CodeUri: src/order-api/functions/post-orders/
       Handler: app.postOrders
       Runtime: nodejs14.x
+      Layers:
+        - !Ref Shared
       Environment:
         Variables:
           ORDER_TABLE: !Ref OrderTable
@@ -80,6 +82,12 @@ Resources:
               - logs:*
             Resource:
               - "*"    
+      Events:
+        SQSEventSource:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt OrderQueue.Arn
+            BatchSize: 10
 
   GetSingleOrder:
     Type: AWS::Serverless::Function 
@@ -131,12 +139,46 @@ Resources:
             Resource:
               - "*"    
 
+  DeleteOrder:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: src/order-api/functions/delete-order/
+      Handler: app.deleteOrder
+      Runtime: nodejs14.x
+      Environment:
+        Variables:
+          ORDER_TABLE: !Ref OrderTable
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:DeleteItem
+            Resource:
+              - !Sub 
+                - 'arn:aws:dynamodb:*:*:table/${Table}'
+                - { Table: !Ref OrderTable }
+          - Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"    
+  OrderQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt OrderDLQueue.Arn
+        maxReceiveCount: 5
+
+  OrderDLQueue:
+    Type: AWS::SQS::Queue
+
+
   Shared:
     Type: AWS::Serverless::LayerVersion
     Properties:
         LayerName: common-dependencies
         Description: Common dependencies
-        ContentUri: shared/
+        ContentUri: src/order-api/shared/
         CompatibleRuntimes:
           - nodejs14.x
 
@@ -183,16 +225,19 @@ Resources:
         Statement: 
           Action:
             - lambda:*
+            - sqs:SendMessage
           Effect: Allow
           Resource:
             - !GetAtt GetOrders.Arn
-            - !GetAtt PostOrders.Arn
+            - !GetAtt OrderQueue.Arn
             - !GetAtt GetSingleOrder.Arn
             - !GetAtt UpdateOrder.Arn
-            
-      Roles: 
+            - !GetAtt DeleteOrder.Arn
+      Roles:
         - Ref: "ApiGwExecutionRole"
-  
+
+            
+      
 Outputs:
   DynamoDBTableName:
     Description: "DynamoDB Table Name"
@@ -217,4 +262,17 @@ Outputs:
   OrderApiEndpoint:
     Description: "API Gateway endpoint URL for Dev stage for Order Get function"
     Value: !Sub "https://${OrderApi}.execute-api.${AWS::Region}.amazonaws.com/Dev/orders/"
+
+  DeleteOrder:
+    Description: "DeleteOrder Lambda Function ARN"
+    Value: !GetAtt DeleteOrder.Arn
+
+  OrderQueueUrl:
+    Description: "URL of order queue"
+    Value: !Ref OrderQueue
+
+  OrderDLQueueUrl:
+    Description: "URL of order dead-letter queue"
+    Value: !Ref OrderDLQueue
+
 
